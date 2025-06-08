@@ -98,38 +98,38 @@ function showNotification(type, message) {
   notification.textContent = message;
   document.body.appendChild(notification);
 
-  setTimeout(() => notification.remove(), 3000); // ✅ Auto-remove after 3 sec
+  setTimeout(() => notification.remove(), 3000); // Auto-remove after 3 sec
 }
 
 document
   .querySelector('.employees-table tbody')
   .addEventListener('dblclick', (dblClickEvent) => {
-    const cell = dblClickEvent.target;
+    const cell = event.target;
 
     if (!cell.matches('td') || cell.querySelector('input')) {
       return;
     }
 
+    const originalValue = cell.textContent.trim(); // Save original value before
+
     const input = document.createElement('input');
 
     input.classList.add('cell-input');
-    input.value = cell.textContent;
-    cell.textContent = ''; //  Clear cell content for input
+    input.value = originalValue;
+    input.dataset.originalValue = originalValue;
+    cell.textContent = '';
     cell.appendChild(input);
     input.focus();
 
     input.addEventListener('blur', () => saveEdit(cell, input));
 
-    input.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
+    input.addEventListener('keypress', (keyEvent) => {
+      if (keyEvent.key === 'Enter') {
         saveEdit(cell, input);
       }
     });
   });
 
 function saveEdit(cell, input) {
-  const trimmedValue = input.value.trim();
-  const originalValue = input.dataset.originalValue;
-
-  cell.textContent = trimmedValue || originalValue; // original value if empty
+  cell.textContent = input.value.trim() || input.dataset.originalValue;
 }
