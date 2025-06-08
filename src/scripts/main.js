@@ -2,62 +2,82 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   const table = document.querySelector('.employees-table');
-  const sortDirection = {}; // ✅ Track sorting direction for each column
+  const tbody = table.querySelector('tbody');
+  const sortDirection = {};
 
+  // Sorting logic
   table.querySelectorAll('th').forEach((header, index) => {
     header.addEventListener('click', () => {
       sortDirection[index] = sortDirection[index] === 'asc' ? 'desc' : 'asc';
-      sortTableByColumn(table, index, sortDirection[index]);
+
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+
+      rows.sort((a, b) => {
+        const cellA = a.cells[index].textContent.trim();
+        const cellB = b.cells[index].textContent.trim();
+
+        return sortDirection[index] === 'asc'
+          ? cellA.localeCompare(cellB, undefined, { numeric: true })
+          : cellB.localeCompare(cellA, undefined, { numeric: true });
+      });
+      rows.forEach((row) => tbody.appendChild(row));
     });
   });
 
-  function sortTableByColumn(targetTable, columnIndex, direction) {
-    const tbody = targetTable.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
+  // Row selection on click
+  tbody.addEventListener('click', (e) => {
+    tbody
+      .querySelectorAll('tr')
+      .forEach((row) => row.classList.remove('active'));
 
-    rows.sort((rowA, rowB) => {
-      const cellA = rowA.cells[columnIndex].textContent.trim();
-      const cellB = rowB.cells[columnIndex].textContent.trim();
-
-      return direction === 'asc'
-        ? cellA.localeCompare(cellB, undefined, { numeric: true })
-        : cellB.localeCompare(cellA, undefined, { numeric: true });
-    });
-
-    rows.forEach((row) => tbody.appendChild(row));
-  }
-});
-
-document
-  .querySelector('.employees-table tbody')
-  .addEventListener('click', (clickEvent) => {
-    document
-      .querySelectorAll('.employees-table tbody tr')
-      .forEach((row) => row.classList.remove('active')); // ✅ Deselect previous
-
-    const clickedRow = clickEvent.target.closest('tr');
+    const clickedRow = e.target.closest('tr');
 
     if (clickedRow) {
-      clickedRow.classList.add('active'); // ✅ Highlight selected row
+      clickedRow.classList.add('active');
     }
   });
 
-document.addEventListener('DOMContentLoaded', () => {
+  // Inline editing on double-click
+  tbody.addEventListener('dblclick', (e) => {
+    const cell = e.target;
+
+    if (!cell.matches('td') || cell.querySelector('input')) {
+      return;
+    }
+
+    const input = document.createElement('input');
+
+    input.className = 'cell-input';
+    input.value = cell.textContent.trim();
+    input.dataset.originalValue = input.value;
+    cell.textContent = '';
+    cell.appendChild(input);
+    input.focus();
+
+    const save = () => {
+      cell.textContent = input.value.trim() || input.dataset.originalValue;
+    };
+
+    input.addEventListener('blur', save);
+    input.addEventListener('keypress', (ev) => ev.key === 'Enter' && save());
+  });
+
+  // Add employee form
   const form = document.createElement('form');
 
-  form.classList.add('new-employee-form');
+  form.className = 'new-employee-form';
 
   form.innerHTML = `
-    <label>Name: <input name="name" type="text" data-qa="name" required></label>
-    <label>Position: <input name="position" type="text" data-qa="position" required></label>
+    <label>Name: <input name="name" required data-qa="name" /></label>
+    <label>Position: <input name="position" required data-qa="position" /></label>
     <label>Office:
       <select name="office" data-qa="office">
         <option>Tokyo</option><option>Singapore</option><option>London</option>
         <option>New York</option><option>Edinburgh</option><option>San Francisco</option>
       </select>
     </label>
-    <label>Age: <input name="age" type="number" data-qa="age" required></label>
-    <label>Salary: <input name="salary" type="number" data-qa="salary" required></label>
+    <label>Age: <input name="age" type="number" required data-qa="age" /></label>
+    <label>Salary: <input name="salary" type="number" required data-qa="salary" /></label>
     <button type="submit">Save to table</button>
   `;
   document.body.appendChild(form);
@@ -68,68 +88,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const employeeName = form.name.value.trim();
     const position = form.position.value.trim();
     const office = form.office.value;
-    const age = parseInt(form.age.value, 10);
-    const salary = parseFloat(form.salary.value);
+    const employeeAge = parseInt(form.age.value, 10);
+    const employeeSalary = parseFloat(form.salary.value);
 
     if (employeeName.length < 4) {
       return showNotification('error', 'Name must be at least 4 characters');
     }
 
-    if (age < 18 || age > 90) {
+    if (employeeAge < 18 || employeeAge > 90) {
       return showNotification('error', 'Age must be between 18 and 90');
     }
 
     const row = document.createElement('tr');
 
-    row.innerHTML = `<td>${employeeName}</td><td>${position}</td><td>${office}</td><td>${age}</td><td>${salary.toFixed(2)}</td>`;
-    document.querySelector('.employees-table tbody').appendChild(row);
-
+    row.innerHTML = `
+      <td>${employeeName}</td>
+      <td>${position.value.trim()}</td>
+      <td>${office.value}</td>
+      <td>${employeeAge}</td>
+      <td>${employeeSalary.toFixed(2)}</td>
+    `;
+    tbody.appendChild(row);
     showNotification('success', 'Employee added successfully!');
     form.reset();
   });
+
+  // Notification helper
+  function showNotification(type, message) {
+    const note = document.createElement('div');
+
+    note.className = `notification ${type}`;
+    note.dataset.qa = 'notification';
+    note.textContent = message;
+    document.body.appendChild(note);
+    setTimeout(() => note.remove(), 3000);
+  }
 });
-
-function showNotification(type, message) {
-  const notification = document.createElement('div');
-
-  notification.className = `notification ${type}`;
-
-  notification.setAttribute('data-qa', 'notification');
-  notification.textContent = message;
-  document.body.appendChild(notification);
-
-  setTimeout(() => notification.remove(), 3000); // Auto-remove after 3 sec
-}
-
-document
-  .querySelector('.employees-table tbody')
-  .addEventListener('dblclick', (dblClickEvent) => {
-    const cell = event.target;
-
-    if (!cell.matches('td') || cell.querySelector('input')) {
-      return;
-    }
-
-    const originalValue = cell.textContent.trim(); // Save original value before
-
-    const input = document.createElement('input');
-
-    input.classList.add('cell-input');
-    input.value = originalValue;
-    input.dataset.originalValue = originalValue;
-    cell.textContent = '';
-    cell.appendChild(input);
-    input.focus();
-
-    input.addEventListener('blur', () => saveEdit(cell, input));
-
-    input.addEventListener('keypress', (keyEvent) => {
-      if (keyEvent.key === 'Enter') {
-        saveEdit(cell, input);
-      }
-    });
-  });
-
-function saveEdit(cell, input) {
-  cell.textContent = input.value.trim() || input.dataset.originalValue;
-}
